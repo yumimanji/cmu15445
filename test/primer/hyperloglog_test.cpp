@@ -23,6 +23,11 @@
 
 namespace bustub {
 
+// 没过
+// HyperLogLogTest.EdgeTest1:113, 值不符合
+// HyperLogLogTest.PrestoBasicTest1:211, 值不符合
+// HyperLogLogTest.PrestoBasicTest1:245, 空指针访问
+
 TEST(HyperLogLogTest, DISABLED_BasicTest1) {
   auto obj = HyperLogLog<std::string>(static_cast<int16_t>(1));
   ASSERT_EQ(obj.GetCardinality(), 0);
@@ -106,7 +111,7 @@ TEST(HyperLogLogTest, DISABLED_BasicTest2) {
   ans = obj.GetCardinality();
   ASSERT_EQ(ans, 10);
 }
-
+// 错误原因: 构造函数没完全处理传参为负数的情况
 TEST(HyperLogLogTest, DISABLED_EdgeTest1) {
   auto obj1 = HyperLogLog<int64_t>(static_cast<int16_t>(-2));
   obj1.ComputeCardinality();
@@ -198,7 +203,7 @@ TEST(HyperLogLogTest, DISABLED_ParallelTest1) {
   ASSERT_EQ(ans, 13010);
 }
 
-TEST(HyperLogLogTest, DISABLED_PrestoBasicTest1) {
+TEST(HyperLogLogTest, PrestoBasicTest1) {
   auto obj = HyperLogLogPresto<std::string>(static_cast<int16_t>(2));
   ASSERT_EQ(obj.GetCardinality(), 0);
 
@@ -231,7 +236,7 @@ TEST(HyperLogLogTest, DISABLED_PrestoBasicTest1) {
   ASSERT_EQ(ans, 4);
 }
 
-TEST(HyperLogLogTest, DISABLED_PrestoCase1) {
+TEST(HyperLogLogTest, PrestoCase1) {
   auto obj = HyperLogLogPresto<int64_t>(static_cast<int16_t>(1));
   auto ans = obj.GetCardinality();
 
@@ -287,7 +292,7 @@ TEST(HyperLogLogTest, DISABLED_PrestoCase1) {
   ASSERT_EQ(15UL, expected5[1].to_ulong());
 }
 
-TEST(HyperLogLogTest, DISABLED_PrestoCase2) {
+TEST(HyperLogLogTest, PrestoCase2) {
   auto obj = HyperLogLogPresto<int64_t>(static_cast<int16_t>(0));
   auto ans = obj.GetCardinality();
 

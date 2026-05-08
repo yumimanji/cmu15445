@@ -18,8 +18,10 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#include <bit>
+#include <limits>
 #include "common/util/hash_util.h"
+#include <numeric>
 
 /** @brief Capacity of the bitset stream. */
 static constexpr int BITSET_CAPACITY = 64;
@@ -71,8 +73,11 @@ class HyperLogLog {
 
   /** @brief Cardinality value. */
   size_t cardinality_;
-
   /** @todo (student) can add their data structures that support HyperLogLog */
+  // 命名规则需要参照.clang-tidy
+  int16_t bucket_nums_ = -1;
+  mutable std::mutex mtx_;
+  std::vector<uint8_t> bucket_;
 };
 
 }  // namespace bustub

@@ -5,6 +5,14 @@ set(CMAKE_CXX_STANDARD 17) # Compile as C++17.
 set(CMAKE_CXX_STANDARD_REQUIRED ON) # Require C++17 support.
 set(CLANG_VERSION 15) # If you change this, make sure you change `packages.sh`
 
+find_program(BUSTUB_CLANG_C_BIN NAMES clang-${CLANG_VERSION} clang HINTS /usr/bin /usr/local/bin /usr/local/opt/llvm@${CLANG_VERSION}/bin /opt/homebrew/opt/llvm@${CLANG_VERSION}/bin)
+find_program(BUSTUB_CLANG_CXX_BIN NAMES clang++-${CLANG_VERSION} clang++ HINTS /usr/bin /usr/local/bin /usr/local/opt/llvm@${CLANG_VERSION}/bin /opt/homebrew/opt/llvm@${CLANG_VERSION}/bin)
+
+if(BUSTUB_CLANG_C_BIN AND BUSTUB_CLANG_CXX_BIN)
+        set(CMAKE_C_COMPILER "${BUSTUB_CLANG_C_BIN}" CACHE FILEPATH "C compiler used by BusTub" FORCE)
+        set(CMAKE_CXX_COMPILER "${BUSTUB_CLANG_CXX_BIN}" CACHE FILEPATH "C++ compiler used by BusTub" FORCE)
+endif()
+
 project(BusTub
         VERSION 2025.8
         DESCRIPTION "The BusTub Relational Database Management System (Educational) @ https://github.com/cmu-db/bustub"

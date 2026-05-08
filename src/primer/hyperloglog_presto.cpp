@@ -16,18 +16,83 @@ namespace bustub {
 
 /** @brief Parameterized constructor. */
 template <typename KeyType>
-HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0) {}
+HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0) 
+{
+  if (n_leading_bits < 0)
+  {
+    return;
+  }
+  bucket_nums_ = n_leading_bits;
+  dense_bucket_.resize(1 << n_leading_bits, 0);
+}
 
 /** @brief Element is added for HLL calculation. */
 template <typename KeyType>
 auto HyperLogLogPresto<KeyType>::AddElem(KeyType val) -> void {
   /** @TODO(student) Implement this function! */
+  if (bucket_nums_ < 0)
+  {
+    return;
+  }
+  auto bits = ComputeBinary(CalculateHash(val));
+
+  // High b bits decide the bucket index.
+  uint16_t idx = 0;
+  if (bucket_nums_ > 0) {
+    idx = static_cast<uint16_t>((bits >> (64 - bucket_nums_)).to_ullong());
+  }
+
+  // Presto-style: use the longest run of consecutive zeros from the right.
+  // For hash==0, __builtin_ctzll is undefined; in that case, the value is the
+  // number of remaining bits (64 - b).
+  uint8_t tail_zero = ComputeBackZero(bits);
+  const uint8_t max_tail_zero = bucket_nums_ == 0 ? 64U : static_cast<uint8_t>(64U - bucket_nums_);
+  if (tail_zero > max_tail_zero) {
+    tail_zero = max_tail_zero;
+  }
+
+  std::lock_guard<std::mutex> lock(mtx_);
+
+  uint8_t current = static_cast<uint8_t>(dense_bucket_[idx].to_ullong());
+  if (overflow_bucket_.count(idx) > 0) {
+    current = static_cast<uint8_t>(current + static_cast<uint8_t>(overflow_bucket_[idx].to_ullong() << 4));
+  }
+
+  if (tail_zero <= current) {
+    return;
+  }
+
+  dense_bucket_[idx] = std::bitset<DENSE_BUCKET_SIZE>(tail_zero & 0x0F);
+  overflow_bucket_[idx] = std::bitset<OVERFLOW_BUCKET_SIZE>(tail_zero >> 4);
 }
 
 /** @brief Function to compute cardinality. */
 template <typename T>
 auto HyperLogLogPresto<T>::ComputeCardinality() -> void {
   /** @TODO(student) Implement this function! */
+  if (bucket_nums_ < 0 || dense_bucket_.empty()) {
+    return;
+  }
+  // Use `double` here to match Presto's behavior and ensure deterministic
+  // rounding in the provided test cases.
+  double ans = 0.0;
+  for (std::size_t i = 0; i < dense_bucket_.size(); ++i)
+  {
+    // 要把空桶的贡献也算上, 还有dense_bucket_和overflow_bucket_的下标的含义是不同的
+    uint64_t ct = dense_bucket_[i].to_ullong();
+    if (overflow_bucket_.count(static_cast<uint16_t>(i)) > 0) {
+      ct += (overflow_bucket_[static_cast<uint16_t>(i)].to_ullong() << 4);
+    }
+    ans += std::exp2(-static_cast<double>(ct));
+  }
+  if (ans == 0)
+  {
+    return;
+  }
+  {
+    std::unique_lock<std::mutex> lock(mtx_);
+    cardinality_ = static_cast<uint64_t>(CONSTANT * dense_bucket_.size() * dense_bucket_.size() / ans);
+  }
 }
 
 template class HyperLogLogPresto<int64_t>;
