@@ -265,8 +265,12 @@ add_custom_target(fix-clang-tidy-diff
 # hardcode some files to check here for each project.
 # ##########################################################
 set(P0_FILES
-        "src/include/primer/count_min_sketch.h"
-        "src/primer/count_min_sketch.cpp"
+        # "src/include/primer/count_min_sketch.h"
+        # "src/primer/count_min_sketch.cpp"
+        "src/include/primer/hyperloglog.h"
+        "src/include/primer/hyperloglog_presto.h"
+        "src/primer/hyperloglog.cpp"
+        "src/primer/hyperloglog_presto.cpp"
 )
 
 add_custom_target(check-clang-tidy-p0

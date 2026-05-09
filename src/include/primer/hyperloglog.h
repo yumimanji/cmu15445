@@ -12,16 +12,16 @@
 
 #pragma once
 
+#include <bit>
 #include <bitset>
+#include <limits>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
-#include <bit>
-#include <limits>
 #include "common/util/hash_util.h"
-#include <numeric>
 
 /** @brief Capacity of the bitset stream. */
 static constexpr int BITSET_CAPACITY = 64;

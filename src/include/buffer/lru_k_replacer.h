@@ -22,18 +22,33 @@
 #include "buffer/arc_replacer.h"
 #include "common/config.h"
 #include "common/macros.h"
+#include <atomic>
+#include <chrono>
 
 namespace bustub {
 
+class LRUKReplacer;
+
 class LRUKNode {
- private:
+public:
+  LRUKNode() = default;
+  LRUKNode(frame_id_t frame, std::size_t k); 
+  // LRUKNode(const LRUKNode &) = delete;
+  // LRUKNode &operator=(const LRUKNode &) = delete;
+  // LRUKNode(LRUKNode &&other) noexcept;
+  // LRUKNode &operator=(LRUKNode &&other) noexcept;
+  auto GetKDistance() -> std::size_t;
+  auto GetKDistance(std::size_t k) -> std::size_t;
+  private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
-  [[maybe_unused]] std::list<size_t> history_;
-  [[maybe_unused]] size_t k_;
+ // 负责管理每一页的相关信息
+  std::list<size_t> history_;
+  size_t k_;
   [[maybe_unused]] frame_id_t fid_;
-  [[maybe_unused]] bool is_evictable_{false};
+  bool is_evictable_{false};
+  friend class LRUKReplacer;
 };
 
 /**
@@ -73,12 +88,15 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] std::unordered_map<frame_id_t, LRUKNode> node_store_;
-  [[maybe_unused]] size_t current_timestamp_{0};
-  [[maybe_unused]] size_t curr_size_{0};
-  [[maybe_unused]] size_t replacer_size_;
-  [[maybe_unused]] size_t k_;
-  [[maybe_unused]] std::mutex latch_;
+  std::unordered_map<frame_id_t, LRUKNode> node_store_;
+  std::atomic_size_t current_timestamp_{0};
+  std::atomic_size_t curr_size_{0};
+  std::size_t replacer_size_;
+  std::atomic_size_t k_;
+  std::mutex latch_;
+
+
+  
 };
 
 }  // namespace bustub

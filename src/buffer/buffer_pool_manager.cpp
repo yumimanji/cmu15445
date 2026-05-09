@@ -138,6 +138,8 @@ auto BufferPoolManager::NewPage() -> page_id_t { UNIMPLEMENTED("TODO(P1): Add im
  * @param page_id The page ID of the page we want to delete.
  * @return `false` if the page exists but could not be deleted, `true` if the page didn't exist or deletion succeeded.
  */
+ // 如果页还存在于Bufferpool, 从数据库, 内存和磁盘删除一个页, 如果页的状态是pinned, 什么都不做且返回false, 
+ // 空间不足就调用DeallocatePage给新的pages分配空间
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { UNIMPLEMENTED("TODO(P1): Add implementation."); }
 
 /**

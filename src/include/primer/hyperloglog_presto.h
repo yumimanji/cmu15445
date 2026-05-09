@@ -82,12 +82,8 @@ class HyperLogLogPresto {
     return 0;
   }
 
-  inline auto ComputeBinary(const hash_t &hash) ->std::bitset<64>
-  {
-    return std::bitset<64>{hash};
-  }
-  inline auto ComputeBackZero(std::bitset<64> &bs) -> uint8_t
-  {
+  inline auto ComputeBinary(const hash_t &hash) -> std::bitset<64> { return std::bitset<64>{hash}; }
+  inline auto ComputeBackZero(std::bitset<64> &bs) -> uint8_t {
     uint64_t num = bs.to_ullong();
     return num == 0 ? 64 : static_cast<uint8_t>(__builtin_ctzll(num));
   }

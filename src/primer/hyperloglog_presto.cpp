@@ -16,10 +16,8 @@ namespace bustub {
 
 /** @brief Parameterized constructor. */
 template <typename KeyType>
-HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0) 
-{
-  if (n_leading_bits < 0)
-  {
+HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinality_(0) {
+  if (n_leading_bits < 0) {
     return;
   }
   bucket_nums_ = n_leading_bits;
@@ -30,40 +28,33 @@ HyperLogLogPresto<KeyType>::HyperLogLogPresto(int16_t n_leading_bits) : cardinal
 template <typename KeyType>
 auto HyperLogLogPresto<KeyType>::AddElem(KeyType val) -> void {
   /** @TODO(student) Implement this function! */
-  if (bucket_nums_ < 0)
-  {
+  if (bucket_nums_ < 0) {
     return;
   }
   auto bits = ComputeBinary(CalculateHash(val));
 
-  // High b bits decide the bucket index.
   uint16_t idx = 0;
   if (bucket_nums_ > 0) {
     idx = static_cast<uint16_t>((bits >> (64 - bucket_nums_)).to_ullong());
   }
 
-  // Presto-style: use the longest run of consecutive zeros from the right.
-  // For hash==0, __builtin_ctzll is undefined; in that case, the value is the
-  // number of remaining bits (64 - b).
-  uint8_t tail_zero = ComputeBackZero(bits);
-  const uint8_t max_tail_zero = bucket_nums_ == 0 ? 64U : static_cast<uint8_t>(64U - bucket_nums_);
-  if (tail_zero > max_tail_zero) {
-    tail_zero = max_tail_zero;
-  }
+  // 后导0的最大数量就是64 - bucket_nums;
+  uint8_t tail_zero = std::min(ComputeBackZero(bits), static_cast<uint8_t>(64U - bucket_nums_));
 
-  std::lock_guard<std::mutex> lock(mtx_);
-
-  uint8_t current = static_cast<uint8_t>(dense_bucket_[idx].to_ullong());
+  // 计算当前的值
+  auto val_dense_bucket = static_cast<uint8_t>(dense_bucket_[idx].to_ullong());
   if (overflow_bucket_.count(idx) > 0) {
-    current = static_cast<uint8_t>(current + static_cast<uint8_t>(overflow_bucket_[idx].to_ullong() << 4));
+    val_dense_bucket += static_cast<uint8_t>(overflow_bucket_[idx].to_ullong());
   }
-
-  if (tail_zero <= current) {
-    return;
+  if (tail_zero > val_dense_bucket) {
+    {
+      std::lock_guard<std::mutex> lock(mtx_);
+      // 保留低4位
+      dense_bucket_[idx] = std::bitset<DENSE_BUCKET_SIZE>(tail_zero & 0x0F);
+      // 保留高3位
+      overflow_bucket_[idx] = std::bitset<OVERFLOW_BUCKET_SIZE>(tail_zero >> 4);
+    }
   }
-
-  dense_bucket_[idx] = std::bitset<DENSE_BUCKET_SIZE>(tail_zero & 0x0F);
-  overflow_bucket_[idx] = std::bitset<OVERFLOW_BUCKET_SIZE>(tail_zero >> 4);
 }
 
 /** @brief Function to compute cardinality. */
@@ -76,8 +67,7 @@ auto HyperLogLogPresto<T>::ComputeCardinality() -> void {
   // Use `double` here to match Presto's behavior and ensure deterministic
   // rounding in the provided test cases.
   double ans = 0.0;
-  for (std::size_t i = 0; i < dense_bucket_.size(); ++i)
-  {
+  for (std::size_t i = 0; i < dense_bucket_.size(); ++i) {
     // 要把空桶的贡献也算上, 还有dense_bucket_和overflow_bucket_的下标的含义是不同的
     uint64_t ct = dense_bucket_[i].to_ullong();
     if (overflow_bucket_.count(static_cast<uint16_t>(i)) > 0) {
@@ -85,8 +75,7 @@ auto HyperLogLogPresto<T>::ComputeCardinality() -> void {
     }
     ans += std::exp2(-static_cast<double>(ct));
   }
-  if (ans == 0)
-  {
+  if (ans == 0) {
     return;
   }
   {
