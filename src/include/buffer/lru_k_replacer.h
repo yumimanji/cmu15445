@@ -19,31 +19,33 @@
 #include <unordered_map>
 #include <vector>
 
-#include "buffer/arc_replacer.h"
-#include "common/config.h"
-#include "common/macros.h"
 #include <atomic>
 #include <chrono>
+#include "common/config.h"
+#include "common/macros.h"
 
 namespace bustub {
+
+enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKReplacer;
 
 class LRUKNode {
-public:
+ public:
   LRUKNode() = default;
-  LRUKNode(frame_id_t frame, std::size_t k); 
+  LRUKNode(frame_id_t frame, std::size_t k);
   // LRUKNode(const LRUKNode &) = delete;
   // LRUKNode &operator=(const LRUKNode &) = delete;
   // LRUKNode(LRUKNode &&other) noexcept;
   // LRUKNode &operator=(LRUKNode &&other) noexcept;
   auto GetKDistance() -> std::size_t;
   auto GetKDistance(std::size_t k) -> std::size_t;
-  private:
+
+ private:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
 
- // 负责管理每一页的相关信息
+  // 负责管理每一页的相关信息
   std::list<size_t> history_;
   size_t k_;
   [[maybe_unused]] frame_id_t fid_;
@@ -77,7 +79,7 @@ class LRUKReplacer {
 
   auto Evict() -> std::optional<frame_id_t>;
 
-  void RecordAccess(frame_id_t frame_id, AccessType access_type = AccessType::Unknown);
+  void RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type = AccessType::Unknown);
 
   void SetEvictable(frame_id_t frame_id, bool set_evictable);
 
@@ -94,9 +96,6 @@ class LRUKReplacer {
   std::size_t replacer_size_;
   std::atomic_size_t k_;
   std::mutex latch_;
-
-
-  
 };
 
 }  // namespace bustub

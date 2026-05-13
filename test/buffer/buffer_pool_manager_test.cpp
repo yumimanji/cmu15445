@@ -29,7 +29,7 @@ void CopyString(char *dest, const std::string &src) {
   snprintf(dest, BUSTUB_PAGE_SIZE, "%s", src.c_str());
 }
 
-TEST(BufferPoolManagerTest, DISABLED_VeryBasicTest) {
+TEST(BufferPoolManagerTest, VeryBasicTest) {
   // A very basic test.
 
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
@@ -60,7 +60,11 @@ TEST(BufferPoolManagerTest, DISABLED_VeryBasicTest) {
   ASSERT_TRUE(bpm->DeletePage(pid));
 }
 
-TEST(BufferPoolManagerTest, DISABLED_PagePinEasyTest) {
+// 没过
+// unknown file: Failure
+// C++ exception with description "bad optional access" thrown in the test body.
+// 没做错误处理, 提交磁盘请求后, 需要异步等待结果, 否则没有数据, WritePageGuard需要构造时设置脏页
+TEST(BufferPoolManagerTest, PagePinEasyTest) {
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
   auto bpm = std::make_shared<BufferPoolManager>(2, disk_manager.get());
 
@@ -158,7 +162,7 @@ TEST(BufferPoolManagerTest, DISABLED_PagePinEasyTest) {
   remove(disk_manager->GetLogFileName());
 }
 
-TEST(BufferPoolManagerTest, DISABLED_PagePinMediumTest) {
+TEST(BufferPoolManagerTest, PagePinMediumTest) {
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
   auto bpm = std::make_shared<BufferPoolManager>(FRAMES, disk_manager.get());
 
@@ -237,7 +241,7 @@ TEST(BufferPoolManagerTest, DISABLED_PagePinMediumTest) {
   remove(db_fname);
 }
 
-TEST(BufferPoolManagerTest, DISABLED_PageAccessTest) {
+TEST(BufferPoolManagerTest, PageAccessTest) {
   const size_t rounds = 50;
 
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
@@ -275,7 +279,7 @@ TEST(BufferPoolManagerTest, DISABLED_PageAccessTest) {
   thread.join();
 }
 
-TEST(BufferPoolManagerTest, DISABLED_ContentionTest) {
+TEST(BufferPoolManagerTest, ContentionTest) {
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
   auto bpm = std::make_shared<BufferPoolManager>(FRAMES, disk_manager.get());
 
@@ -317,7 +321,8 @@ TEST(BufferPoolManagerTest, DISABLED_ContentionTest) {
   thread1.join();
 }
 
-TEST(BufferPoolManagerTest, DISABLED_DeadlockTest) {
+// 死锁
+TEST(BufferPoolManagerTest, DeadlockTest) {
   auto disk_manager = std::make_shared<DiskManager>(db_fname);
   auto bpm = std::make_shared<BufferPoolManager>(FRAMES, disk_manager.get());
 
@@ -337,8 +342,10 @@ TEST(BufferPoolManagerTest, DISABLED_DeadlockTest) {
     const auto guard0 = bpm->WritePage(pid0);
   });
 
+  // GTEST_LOG_(INFO) << "死锁前\n";
   // Wait for the other thread to begin before we start the test.
   while (!start.load()) {
+    // GTEST_LOG_(INFO) << "死锁中...\n";
   }
 
   // Make the other thread wait for a bit.
@@ -357,7 +364,7 @@ TEST(BufferPoolManagerTest, DISABLED_DeadlockTest) {
   child.join();
 }
 
-TEST(BufferPoolManagerTest, DISABLED_EvictableTest) {
+TEST(BufferPoolManagerTest, EvictableTest) {
   // Test if the evictable status of a frame is always correct.
   const size_t rounds = 1000;
   const size_t num_readers = 8;

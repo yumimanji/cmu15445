@@ -18,7 +18,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "buffer/arc_replacer.h"
+// #include "buffer/arc_replacer.h"
+#include "buffer/lru_k_replacer.h"
 #include "common/config.h"
 #include "recovery/log_manager.h"
 #include "storage/disk/disk_scheduler.h"
@@ -63,7 +64,8 @@ class FrameHeader {
 
  public:
   explicit FrameHeader(frame_id_t frame_id);
-
+  explicit FrameHeader(frame_id_t frame_id, page_id_t page_id);
+  //   explicit FrameHeader(frame_id_t frame_id, bool is_dirty);
  private:
   auto GetData() const -> const char *;
   auto GetDataMut() -> char *;
@@ -71,6 +73,11 @@ class FrameHeader {
 
   /** @brief The frame ID / index of the frame this header represents. */
   const frame_id_t frame_id_;
+
+  // 对应CheckedWritePage的第三种情况, 此时获取的帧可能被其他page_id持有
+  // 想要扎到这个page_id就需要遍历, 但是效率低, 使用一个额外的变量存储可以
+  // 不用遍历
+  page_id_t page_id_ = INVALID_PAGE_ID;
 
   /** @brief The readers / writer latch for this frame. */
   std::shared_mutex rwlatch_;
@@ -110,6 +117,7 @@ class FrameHeader {
 class BufferPoolManager {
  public:
   BufferPoolManager(size_t num_frames, DiskManager *disk_manager, LogManager *log_manager = nullptr);
+  BufferPoolManager(size_t num_frames, DiskManager *disk_manager, size_t k, LogManager *log_manager = nullptr);
   ~BufferPoolManager();
 
   auto Size() const -> size_t;
@@ -147,10 +155,12 @@ class BufferPoolManager {
   std::unordered_map<page_id_t, frame_id_t> page_table_;
 
   /** @brief A list of free frames that do not hold any page's data. */
+  // 没有被页控制的空闲帧
   std::list<frame_id_t> free_frames_;
 
   /** @brief The replacer to find unpinned / candidate pages for eviction. */
-  std::shared_ptr<ArcReplacer> replacer_;
+
+  std::shared_ptr<LRUKReplacer> replacer_;
 
   /** @brief A pointer to the disk scheduler. Shared with the page guards for flushing. */
   std::shared_ptr<DiskScheduler> disk_scheduler_;
@@ -171,5 +181,7 @@ class BufferPoolManager {
    * stored inside of it. Additionally, you may also want to implement a helper function that returns either a shared
    * pointer to a `FrameHeader` that already has a page's data stored inside of it, or an index to said `FrameHeader`.
    */
+
+  //    std::mutex mtx_;
 };
 }  // namespace bustub

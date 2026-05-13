@@ -19,12 +19,11 @@
 #include <optional>
 #include <unordered_map>
 
+#include "buffer/lru_k_replacer.h"
 #include "common/config.h"
 #include "common/macros.h"
 
 namespace bustub {
-
-enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 enum class ArcStatus { MRU, MFU, MRU_GHOST, MFU_GHOST };
 

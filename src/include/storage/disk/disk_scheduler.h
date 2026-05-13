@@ -29,14 +29,14 @@ struct DiskRequest {
   /** Flag indicating whether the request is a write or a read. */
   bool is_write_;
   DiskRequest() = default;
-  explicit DiskRequest(bool is_write, char *dt, page_id_t page_id, std::promise<bool> pr) noexcept;
-  
+  DiskRequest(bool is_write, char *dt, page_id_t page_id, std::promise<bool> pr) noexcept;
+
   // 不知道为啥这两个函数加了就会报错
   // DiskRequest(DiskRequest& dr) noexcept {};
   // auto operator=(DiskRequest& dr) -> DiskRequest& {return *this;};
 
-  DiskRequest(DiskRequest&& other) noexcept;
-  auto operator=(DiskRequest&& other) noexcept -> DiskRequest&;
+  DiskRequest(DiskRequest &&other) noexcept;
+  auto operator=(DiskRequest &&other) noexcept -> DiskRequest &;
 
   /**
    *  Pointer to the start of the memory location where a page is either:
@@ -59,7 +59,7 @@ struct DiskRequest {
  * maintains a background worker thread that processes the scheduled requests using the disk manager. The background
  * thread is created in the DiskScheduler constructor and joined in its destructor.
  */
- // 后台线程在DiskScheduler构造时进行创建, 析构时join
+// 后台线程在DiskScheduler构造时进行创建, 析构时join
 class DiskScheduler {
  public:
   explicit DiskScheduler(DiskManager *disk_manager);
@@ -71,6 +71,7 @@ class DiskScheduler {
 
   ~DiskScheduler();
 
+  void Schedule(DiskRequest request);
   void Schedule(std::vector<DiskRequest> &requests);
 
   void StartWorkerThread();
@@ -83,7 +84,7 @@ class DiskScheduler {
    *
    * @return std::promise<bool>
    */
-   // 应该是触发某种条件后调用DiskRequest内部的回调函数
+  // 应该是触发某种条件后调用DiskRequest内部的回调函数
   auto CreatePromise() -> DiskSchedulerPromise { return {}; };
 
   /**

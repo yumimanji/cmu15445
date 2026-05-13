@@ -11,28 +11,23 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
-#include "common/exception.h"
-#include <climits>
-#include <tuple>
 #include <algorithm>
+#include <climits>
 #include <utility>
+#include "common/exception.h"
 namespace bustub {
 
-LRUKNode::LRUKNode(const frame_id_t frame, std::size_t k) : k_(k), fid_(frame)
-{}
+LRUKNode::LRUKNode(const frame_id_t frame, std::size_t k) : k_(k), fid_(frame) {}
 
-auto LRUKNode::GetKDistance() -> std::size_t
-{
-    if (history_.size() < k_)
-    {
-        return ULONG_MAX;
-    }
-    auto iter = history_.rbegin();
-    for (std::size_t i = 0; i < k_ - 1; ++i)
-    {
-        ++iter;
-    }
-    return *iter;
+auto LRUKNode::GetKDistance() -> std::size_t {
+  if (history_.size() < k_) {
+    return ULONG_MAX;
+  }
+  auto iter = history_.rbegin();
+  for (std::size_t i = 0; i < k_ - 1; ++i) {
+    ++iter;
+  }
+  return *iter;
 }
 /**
  *
@@ -41,8 +36,7 @@ auto LRUKNode::GetKDistance() -> std::size_t
  * @brief a new LRUKReplacer.
  * @param num_frames the maximum number of frames the LRUReplacer will be required to store
  */
-LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) 
-{}
+LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 /**
  * TODO(P1): Add implementation
@@ -59,67 +53,56 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  *
  * @return the frame ID if a frame is successfully evicted, or `std::nullopt` if no frames can be evicted.
  */
- // 按照规则移除不应该留在缓存里的帧
- // 从当前时间戳的块向过去数K个帧, 如果存在, 就移除
- // 如果不存在第K个帧, 就标记为inf + 对应值
- // 存在多个时就移除时间戳最早的那个
- // 淘汰当前记录的每个帧里的所有可淘汰的节点
-struct Com
-{
-    auto operator()(std::tuple<std::size_t, std::size_t, frame_id_t> &a, 
-        std::tuple<std::size_t, std::size_t, frame_id_t> &b) -> bool
-    {
-        if (std::get<0>(a) != std::get<0>(b))
-        {
-            // 当k-dis相同时, 比较第k+1个元素, 如果不存在记为inf, 存在则记录这个值, 当k-dis相同的时候, 比较这个值, 大的优先删除
-            return std::get<0>(a) > std::get<0>(b);
-        }
-        return std::get<1>(a) < std::get<1>(b);
+// 按照规则移除不应该留在缓存里的帧
+// 从当前时间戳的块向过去数K个帧, 如果存在, 就移除
+// 如果不存在第K个帧, 就标记为inf + 对应值
+// 存在多个时就移除时间戳最早的那个
+// 淘汰当前记录的每个帧里的所有可淘汰的节点
+struct Com {
+  auto operator()(std::tuple<std::size_t, std::size_t, frame_id_t> &a,
+                  std::tuple<std::size_t, std::size_t, frame_id_t> &b) -> bool {
+    if (std::get<0>(a) != std::get<0>(b)) {
+      // 当k-dis相同时, 比较第k+1个元素, 如果不存在记为inf, 存在则记录这个值, 当k-dis相同的时候, 比较这个值,
+      // 大的优先删除
+      return std::get<0>(a) > std::get<0>(b);
     }
+    return std::get<1>(a) < std::get<1>(b);
+  }
 };
 
-auto LRUKNode::GetKDistance(std::size_t k) -> std::size_t
-{
-    if (history_.size() < k)
-    {
-        return ULONG_MAX;
-    }
-    auto iter = history_.rbegin();
-    std::size_t count = k;
-    while ((--count) >= 0 && iter != history_.rend())
-    {
-        ++iter;
-    }
-    return *iter;
+auto LRUKNode::GetKDistance(std::size_t k) -> std::size_t {
+  if (history_.size() < k) {
+    return ULONG_MAX;
+  }
+  auto iter = history_.rbegin();
+  for (std::size_t i = 1; i < k; ++i) {
+    ++iter;
+  }
+  return *iter;
 }
-auto LRUKReplacer::Evict() -> std::optional<frame_id_t> 
-{ 
-    std::unique_lock<std::mutex> lock(latch_);
-    std::vector<std::tuple<std::size_t, std::size_t, frame_id_t>> v;
-    for (auto &[frame, node] : node_store_)
-    {
-        if (node.is_evictable_)
-        {
-            std::size_t last_k_vis_timestamp = node.GetKDistance();
-            std::size_t backward_k_dis = (last_k_vis_timestamp == ULONG_MAX) 
-                ? ULONG_MAX 
-                : current_timestamp_.load() - last_k_vis_timestamp;
+auto LRUKReplacer::Evict() -> std::optional<frame_id_t> {
+  std::scoped_lock<std::mutex> lock(latch_);
+  std::vector<std::tuple<std::size_t, std::size_t, frame_id_t>> v;
+  for (auto &[frame, node] : node_store_) {
+    if (node.is_evictable_) {
+      std::size_t last_k_vis_timestamp = node.GetKDistance();
+      std::size_t backward_k_dis =
+          (last_k_vis_timestamp == ULONG_MAX) ? ULONG_MAX : current_timestamp_.load() - last_k_vis_timestamp;
 
-            std::size_t earliest = node.history_.front();
-            v.emplace_back(backward_k_dis, earliest, frame);
-        }
+      std::size_t earliest = node.history_.front();
+      v.emplace_back(backward_k_dis, earliest, frame);
     }
-    if (v.empty())
-    {
-        return std::nullopt; 
-    }
+  }
+  if (v.empty()) {
+    return std::nullopt;
+  }
 
-    std::sort(v.begin(), v.end(), Com());
-    
-    frame_id_t frame_to_evict = std::get<2>(v.front());
-    node_store_.erase(frame_to_evict);
-    curr_size_.fetch_sub(1);
-    return frame_to_evict;
+  std::sort(v.begin(), v.end(), Com());
+
+  frame_id_t frame_to_evict = std::get<2>(v.front());
+  node_store_.erase(frame_to_evict);
+  curr_size_.fetch_sub(1);
+  return frame_to_evict;
 }
 
 /**
@@ -135,19 +118,16 @@ auto LRUKReplacer::Evict() -> std::optional<frame_id_t>
  * @param access_type type of access that was received. This parameter is only needed for
  * leaderboard tests.
  */
-void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) 
-{
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_))
-    {
-        return;
-    }
-    current_timestamp_++;
-    std::unique_lock<std::mutex> lock(latch_);
-    if (node_store_.count(frame_id) == 0)
-    {
-        node_store_.emplace(frame_id, LRUKNode{frame_id, k_.load()});
-    }
-    node_store_[frame_id].history_.push_back(current_timestamp_.load());
+void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
+  if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+    return;
+  }
+  current_timestamp_++;
+  std::scoped_lock<std::mutex> lock(latch_);
+  if (node_store_.count(frame_id) == 0) {
+    node_store_.emplace(frame_id, LRUKNode{frame_id, k_.load()});
+  }
+  node_store_[frame_id].history_.push_back(current_timestamp_.load());
 }
 
 /**
@@ -167,24 +147,22 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
  * @param frame_id id of frame whose 'evictable' status will be modified
  * @param set_evictable whether the given frame is evictable or not
  */
-void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) 
-{
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_) || node_store_.count(frame_id) == 0)
-    {
-        return;
-    }
+void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
+  if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+    return;
+  }
 
-    std::unique_lock<std::mutex> lock(latch_);
-    if (node_store_[frame_id].is_evictable_ && !set_evictable)
-    {
-        node_store_[frame_id].is_evictable_ = false;
-        curr_size_.fetch_sub(1);
-    } 
-    else if (!node_store_[frame_id].is_evictable_ && set_evictable)
-    {
-        node_store_[frame_id].is_evictable_= true;
-        curr_size_.fetch_add(1);
-    }
+  std::scoped_lock<std::mutex> lock(latch_);
+  if (node_store_.count(frame_id) == 0) {
+    return;
+  }
+  if (node_store_[frame_id].is_evictable_ && !set_evictable) {
+    node_store_[frame_id].is_evictable_ = false;
+    curr_size_.fetch_sub(1);
+  } else if (!node_store_[frame_id].is_evictable_ && set_evictable) {
+    node_store_[frame_id].is_evictable_ = true;
+    curr_size_.fetch_add(1);
+  }
 }
 
 /**
@@ -204,19 +182,19 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable)
  *
  * @param frame_id id of frame to be removed
  */
-void LRUKReplacer::Remove(frame_id_t frame_id) 
-{
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_) || node_store_.count(frame_id) == 0)
-    {
-        return;
-    }
+void LRUKReplacer::Remove(frame_id_t frame_id) {
+  if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+    return;
+  }
 
-    std::unique_lock<std::mutex> lock(latch_);
-    if (node_store_[frame_id].is_evictable_)
-    {
-        curr_size_.fetch_sub(1);
-        node_store_.erase(frame_id);
-    }
+  std::scoped_lock<std::mutex> lock(latch_);
+  if (node_store_.count(frame_id) == 0) {
+    return;
+  }
+  if (node_store_[frame_id].is_evictable_) {
+    curr_size_.fetch_sub(1);
+    node_store_.erase(frame_id);
+  }
 }
 
 /**
